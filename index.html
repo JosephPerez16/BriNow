@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BriNow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-grid"></div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-area">
+        <button class="menu-btn" id="menuBtn" aria-label="Abrir menú">
+          <span></span><span></span><span></span>
+        </button>
+        <a href="#hero" class="brand">
+          <div class="brand-logo">B</div>
+          <div class="brand-copy">
+            <h1>BriNow</h1>
+            <p>Clima, dólar, noticias, rutas y cartera personal</p>
+          </div>
+        </a>
+      </div>
+
+      <nav class="desktop-nav">
+        <a href="#dashboard">Panel</a>
+        <a href="#mobilitySection">Movilidad</a>
+        <a href="#walletSection">Cartera</a>
+        <a href="#newsSection">Noticias</a>
+      </nav>
+
+      <div class="topbar-right">
+        <div class="live-badge">
+          <span class="live-dot"></span>
+          <span id="statusLabel">Actualizando</span>
+        </div>
+        <button class="ghost-btn" id="locateBtn">Usar mi ubicación</button>
+      </div>
+    </header>
+
+    <div class="mobile-drawer" id="mobileDrawer">
+      <a href="#dashboard">Panel</a>
+      <a href="#mobilitySection">Movilidad</a>
+      <a href="#walletSection">Cartera</a>
+      <a href="#newsSection">Noticias</a>
+      <button class="ghost-btn drawer-btn" id="drawerLocateBtn">Usar mi ubicación</button>
+    </div>
+
+    <main class="main-content">
+      <section class="hero" id="hero">
+        <div class="hero-copy glass-card">
+          <div class="kicker">Dashboard personal</div>
+          <h2>Todo lo que te importa, <span>en un solo lugar</span>.</h2>
+          <p>
+            BriNow te ayuda a mantenerte actualizado con clima, dólar, noticias, ubicación y rutas,
+            mientras controlas tus ingresos y gastos con una cartera personal simple y útil.
+          </p>
+          <div class="hero-actions">
+            <a href="#dashboard" class="primary-btn">Ver panel</a>
+            <a href="#walletSection" class="secondary-btn">Ir a mi cartera</a>
+          </div>
+          <div class="hero-meta">
+            <div class="mini-card"><span>Ubicación</span><strong id="locationLabel">Santo Domingo, RD</strong></div>
+            <div class="mini-card"><span>Hora</span><strong id="currentTime">--:--</strong></div>
+            <div class="mini-card"><span>Última actualización</span><strong id="lastUpdatedLabel">--:--</strong></div>
+          </div>
+        </div>
+
+        <div class="hero-summary glass-card">
+          <div class="summary-head">
+            <span>Resumen rápido</span>
+            <strong id="heroDayLabel">Hoy</strong>
+          </div>
+          <div class="summary-grid">
+            <article class="summary-tile"><span>🌤️ Clima</span><strong id="heroTemp">--°</strong><small id="heroWeatherText">Cargando clima</small></article>
+            <article class="summary-tile"><span>💵 USD / DOP</span><strong id="heroRate">--</strong><small>Tasa referencial</small></article>
+            <article class="summary-tile"><span>📰 Noticias</span><strong id="heroNewsCount">0</strong><small id="heroNewsText">Sin titulares</small></article>
+            <article class="summary-tile"><span>💳 Cartera</span><strong id="heroWalletBalance">RD$ 0.00</strong><small id="heroWalletText">Saldo disponible</small></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="dashboard-grid" id="dashboard">
+        <article class="glass-card weather-card">
+          <div class="card-head">
+            <div><p class="card-kicker">Clima actual</p><h3>Condiciones y próximas horas</h3></div>
+            <div class="card-icon">☁️</div>
+          </div>
+          <div class="weather-main">
+            <div class="weather-big">
+              <strong id="weatherTemp">--°C</strong>
+              <span id="weatherCondition">Cargando...</span>
+            </div>
+            <div class="weather-metrics">
+              <div class="metric-box"><span>Sensación</span><strong id="feelsLike">--°C</strong></div>
+              <div class="metric-box"><span>Viento</span><strong id="windSpeed">-- km/h</strong></div>
+              <div class="metric-box"><span>Código</span><strong id="weatherCodeLabel">--</strong></div>
+            </div>
+          </div>
+          <div class="forecast-strip" id="forecastStrip"><div class="empty-state">El pronóstico aparecerá aquí.</div></div>
+        </article>
+
+        <article class="glass-card exchange-card">
+          <div class="card-head">
+            <div><p class="card-kicker">Economía rápida</p><h3>Tipo de cambio</h3></div>
+            <div class="card-icon">💸</div>
+          </div>
+          <div class="stack-list">
+            <div class="list-row"><span>USD → DOP</span><strong id="usdToDop">--</strong></div>
+            <div class="list-row"><span>EUR → DOP</span><strong id="eurToDop">--</strong></div>
+            <div class="list-row"><span>Actualizado</span><strong id="exchangeUpdated">--</strong></div>
+          </div>
+          <p class="support-text">Tasa referencial gratuita para uso rápido y personal.</p>
+        </article>
+
+        <article class="glass-card mobility-card" id="mobilitySection">
+          <div class="card-head">
+            <div><p class="card-kicker">Movilidad</p><h3>Ubicación y ruta</h3></div>
+            <div class="card-icon">🚗</div>
+          </div>
+          <form class="route-form" id="routeForm">
+            <div class="input-group"><label for="originInput">Origen</label><input id="originInput" type="text" placeholder="Ej: ITLA, Santo Domingo"></div>
+            <div class="input-group"><label for="destinationInput">Destino</label><input id="destinationInput" type="text" placeholder="Ej: Agora Mall"></div>
+            <button type="submit" class="primary-btn full-btn">Calcular ruta</button>
+          </form>
+          <div class="route-summary" id="routeSummary">Escribe un origen y un destino para estimar distancia y tiempo.</div>
+        </article>
+
+        <article class="glass-card news-card" id="newsSection">
+          <div class="card-head">
+            <div><p class="card-kicker">Noticias</p><h3>Titulares rápidos</h3></div>
+            <div class="card-icon">📰</div>
+          </div>
+          <div class="news-toolbar">
+            <input id="newsQuery" type="text" placeholder="Buscar: economía, tecnología, deportes...">
+            <button class="ghost-btn" id="searchNewsBtn">Buscar</button>
+          </div>
+          <div class="news-list" id="newsList"><div class="empty-state">Cargando noticias...</div></div>
+        </article>
+      </section>
+
+      <section class="map-wallet-grid">
+        <article class="glass-card map-card">
+          <div class="card-head">
+            <div><p class="card-kicker">Mapa</p><h3>Vista general</h3></div>
+            <div class="card-icon">📍</div>
+          </div>
+          <div id="map"></div>
+          <div class="map-footer" id="mapStatus">Mapa listo.</div>
+        </article>
+
+        <article class="glass-card wallet-card" id="walletSection">
+          <div class="card-head">
+            <div><p class="card-kicker">Mi cartera</p><h3>Control de ingresos y gastos</h3></div>
+            <div class="card-icon">💳</div>
+          </div>
+
+          <form class="wallet-income-form" id="incomeForm">
+            <div class="input-group">
+              <label for="salaryInput">Mi sueldo / ingreso base (RD$)</label>
+              <input id="salaryInput" type="number" min="0" step="0.01" placeholder="Ej: 35000">
+            </div>
+            <button type="submit" class="primary-btn full-btn">Guardar sueldo</button>
+          </form>
+
+          <div class="wallet-summary-grid">
+            <div class="metric-box wallet-box positive"><span>Ingreso</span><strong id="incomeValue">RD$ 0.00</strong></div>
+            <div class="metric-box wallet-box negative"><span>Gastos</span><strong id="expenseValue">RD$ 0.00</strong></div>
+            <div class="metric-box wallet-box info"><span>Disponible</span><strong id="balanceValue">RD$ 0.00</strong></div>
+            <div class="metric-box wallet-box alert"><span>Estado</span><strong id="walletStatusValue">Sin datos</strong></div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-head"><span>Uso del sueldo</span><strong id="budgetPercentLabel">0%</strong></div>
+            <div class="progress-bar"><div class="progress-fill" id="budgetProgress"></div></div>
+          </div>
+
+          <form class="expense-form" id="expenseForm">
+            <div class="input-group"><label for="expenseTitle">Concepto</label><input id="expenseTitle" type="text" placeholder="Ej: Supermercado"></div>
+            <div class="expense-inline">
+              <div class="input-group"><label for="expenseAmount">Monto (RD$)</label><input id="expenseAmount" type="number" min="0" step="0.01" placeholder="0.00"></div>
+              <div class="input-group">
+                <label for="expenseCategory">Categoría</label>
+                <select id="expenseCategory">
+                  <option value="Hogar">Hogar</option>
+                  <option value="Comida">Comida</option>
+                  <option value="Transporte">Transporte</option>
+                  <option value="Salud">Salud</option>
+                  <option value="Entretenimiento">Entretenimiento</option>
+                  <option value="Servicios">Servicios</option>
+                  <option value="Otros">Otros</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="secondary-btn full-btn">Agregar gasto</button>
+          </form>
+
+          <div class="wallet-list-head">
+            <span>Movimientos</span>
+            <button class="ghost-btn small-btn" id="clearExpensesBtn">Limpiar todo</button>
+          </div>
+          <div class="expenses-list" id="expensesList"><div class="empty-state">Aún no has agregado gastos.</div></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="script.js"></script>
+</body>
+</html>
