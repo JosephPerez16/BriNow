@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -126,12 +126,43 @@
             <div><p class="card-kicker">Movilidad</p><h3>Ubicación y ruta</h3></div>
             <div class="card-icon">🚗</div>
           </div>
+
+          <div class="input-group">
+            <label for="originInput">Origen</label>
+            <input id="originInput" type="text" value="Mi ubicación actual" disabled>
+          </div>
+
           <form class="route-form" id="routeForm">
-            <div class="input-group"><label for="originInput">Origen</label><input id="originInput" type="text" placeholder="Ej: ITLA, Santo Domingo"></div>
-            <div class="input-group"><label for="destinationInput">Destino</label><input id="destinationInput" type="text" placeholder="Ej: Agora Mall"></div>
+            <div class="input-group">
+              <label for="destinationInput">Destino</label>
+              <input id="destinationInput" type="text" placeholder="Ej: Agora Mall">
+            </div>
             <button type="submit" class="primary-btn full-btn">Calcular ruta</button>
           </form>
-          <div class="route-summary" id="routeSummary">Escribe un origen y un destino para estimar distancia y tiempo.</div>
+
+          <div class="nav-controls">
+            <button class="secondary-btn full-btn" id="startNavBtn" type="button">Iniciar navegación</button>
+            <button class="ghost-btn full-btn" id="stopNavBtn" type="button">Detener navegación</button>
+          </div>
+
+          <div class="nav-panel">
+            <div class="nav-stat">
+              <span>Siguiente paso</span>
+              <strong id="navInstruction">Calcula una ruta primero</strong>
+            </div>
+            <div class="nav-inline">
+              <div class="nav-stat">
+                <span>Restante</span>
+                <strong id="navRemaining">--</strong>
+              </div>
+              <div class="nav-stat">
+                <span>Estado</span>
+                <strong id="navMode">Inactivo</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="route-summary" id="routeSummary">Primero usa tu ubicación y luego escribe el destino.</div>
         </article>
 
         <article class="glass-card news-card" id="newsSection">
@@ -213,7 +244,7 @@
     </main>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="script.js"></script>
 </body>
 </html>
