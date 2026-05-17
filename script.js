@@ -1,291 +1,89 @@
-const DOM={menuBtn:document.getElementById("menuBtn"),mobileDrawer:document.getElementById("mobileDrawer"),locateBtn:document.getElementById("locateBtn"),drawerLocateBtn:document.getElementById("drawerLocateBtn"),statusLabel:document.getElementById("statusLabel"),locationLabel:document.getElementById("locationLabel"),currentTime:document.getElementById("currentTime"),lastUpdatedLabel:document.getElementById("lastUpdatedLabel"),heroDayLabel:document.getElementById("heroDayLabel"),heroTemp:document.getElementById("heroTemp"),heroWeatherText:document.getElementById("heroWeatherText"),heroRate:document.getElementById("heroRate"),heroNewsCount:document.getElementById("heroNewsCount"),heroNewsText:document.getElementById("heroNewsText"),heroWalletBalance:document.getElementById("heroWalletBalance"),heroWalletText:document.getElementById("heroWalletText"),weatherTemp:document.getElementById("weatherTemp"),weatherCondition:document.getElementById("weatherCondition"),feelsLike:document.getElementById("feelsLike"),windSpeed:document.getElementById("windSpeed"),weatherCodeLabel:document.getElementById("weatherCodeLabel"),forecastStrip:document.getElementById("forecastStrip"),usdToDop:document.getElementById("usdToDop"),eurToDop:document.getElementById("eurToDop"),exchangeUpdated:document.getElementById("exchangeUpdated"),originInput:document.getElementById("originInput"),routeForm:document.getElementById("routeForm"),destinationInput:document.getElementById("destinationInput"),routeSummary:document.getElementById("routeSummary"),mapStatus:document.getElementById("mapStatus"),newsQuery:document.getElementById("newsQuery"),searchNewsBtn:document.getElementById("searchNewsBtn"),newsList:document.getElementById("newsList"),incomeForm:document.getElementById("incomeForm"),salaryInput:document.getElementById("salaryInput"),incomeValue:document.getElementById("incomeValue"),expenseValue:document.getElementById("expenseValue"),balanceValue:document.getElementById("balanceValue"),walletStatusValue:document.getElementById("walletStatusValue"),budgetPercentLabel:document.getElementById("budgetPercentLabel"),budgetProgress:document.getElementById("budgetProgress"),expenseForm:document.getElementById("expenseForm"),expenseTitle:document.getElementById("expenseTitle"),expenseAmount:document.getElementById("expenseAmount"),expenseCategory:document.getElementById("expenseCategory"),expensesList:document.getElementById("expensesList"),clearExpensesBtn:document.getElementById("clearExpensesBtn"),startNavBtn:document.getElementById("startNavBtn"),stopNavBtn:document.getElementById("stopNavBtn"),navInstruction:document.getElementById("navInstruction"),navRemaining:document.getElementById("navRemaining"),navMode:document.getElementById("navMode")};
-const STORAGE_KEYS={coords:"brinow_coords",locationName:"brinow_location_name",salary:"brinow_salary",expenses:"brinow_expenses"};
-const FALLBACK_LOCATION={lat:18.4861,lon:-69.9312,name:"Santo Domingo, RD"};
-const state={coords:loadCoords(),locationName:localStorage.getItem(STORAGE_KEYS.locationName)||FALLBACK_LOCATION.name,map:null,userMarker:null,routeLine:null,destinationMarker:null,salary:Number(localStorage.getItem(STORAGE_KEYS.salary)||0),expenses:loadExpenses(),currentRoute:null,navigationActive:false,watchId:null,lastPosition:null};
-document.addEventListener("DOMContentLoaded",init);
+const $=id=>document.getElementById(id);
+const todayKey=()=>new Date().toISOString().slice(0,10);
+const money=n=>new Intl.NumberFormat("es-DO",{style:"currency",currency:"DOP"}).format(Number(n)||0);
+const timeFmt=d=>new Intl.DateTimeFormat("es-DO",{hour:"2-digit",minute:"2-digit"}).format(d instanceof Date?d:new Date(d));
+const dateFmt=d=>new Intl.DateTimeFormat("es-DO",{weekday:"long",day:"2-digit",month:"long"}).format(d instanceof Date?d:new Date(d));
+const safe=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
 
-function init(){bindEvents();initClock();initMap();updateLocationLabel(state.locationName);renderWallet();refreshAll()}
+const DOM={
+  menuBtn:$("menuBtn"),mobileDrawer:$("mobileDrawer"),locateBtn:$("locateBtn"),drawerLocateBtn:$("drawerLocateBtn"),statusLabel:$("statusLabel"),locationLabel:$("locationLabel"),currentTime:$("currentTime"),lastUpdatedLabel:$("lastUpdatedLabel"),heroDayLabel:$("heroDayLabel"),heroTemp:$("heroTemp"),heroWeatherText:$("heroWeatherText"),heroRate:$("heroRate"),weatherTemp:$("weatherTemp"),weatherCondition:$("weatherCondition"),feelsLike:$("feelsLike"),windSpeed:$("windSpeed"),forecastStrip:$("forecastStrip"),usdToDop:$("usdToDop"),eurToDop:$("eurToDop"),exchangeUpdated:$("exchangeUpdated"),taskForm:$("taskForm"),taskInput:$("taskInput"),taskTime:$("taskTime"),taskPriority:$("taskPriority"),taskList:$("taskList"),pendingTasks:$("pendingTasks"),doneTasks:$("doneTasks"),taskProgressText:$("taskProgressText"),taskProgressBar:$("taskProgressBar"),clearDoneTasks:$("clearDoneTasks"),clearAllTasks:$("clearAllTasks"),heroTasksCount:$("heroTasksCount"),heroTasksText:$("heroTasksText"),newsQuery:$("newsQuery"),searchNewsBtn:$("searchNewsBtn"),newsList:$("newsList"),routeForm:$("routeForm"),destinationInput:$("destinationInput"),routeSummary:$("routeSummary"),startNavBtn:$("startNavBtn"),stopNavBtn:$("stopNavBtn"),navInstruction:$("navInstruction"),navRemaining:$("navRemaining"),navMode:$("navMode"),mapStatus:$("mapStatus"),incomeForm:$("incomeForm"),salaryInput:$("salaryInput"),incomeValue:$("incomeValue"),expenseValue:$("expenseValue"),balanceValue:$("balanceValue"),walletStatusValue:$("walletStatusValue"),budgetPercentLabel:$("budgetPercentLabel"),budgetProgress:$("budgetProgress"),expenseForm:$("expenseForm"),expenseName:$("expenseName"),expenseAmount:$("expenseAmount"),expenseList:$("expenseList"),heroWalletBalance:$("heroWalletBalance"),heroWalletText:$("heroWalletText")
+};
 
-function bindEvents(){
-if(DOM.menuBtn){DOM.menuBtn.addEventListener("click",()=>DOM.mobileDrawer.classList.toggle("open"))}
-if(DOM.locateBtn){DOM.locateBtn.addEventListener("click",detectUserLocation)}
-if(DOM.drawerLocateBtn){DOM.drawerLocateBtn.addEventListener("click",detectUserLocation)}
-if(DOM.searchNewsBtn){DOM.searchNewsBtn.addEventListener("click",()=>loadNews(DOM.newsQuery.value.trim()||"República Dominicana"))}
-if(DOM.routeForm){DOM.routeForm.addEventListener("submit",async e=>{e.preventDefault();await calculateRoute()})}
-if(DOM.startNavBtn){DOM.startNavBtn.addEventListener("click",startNavigation)}
-if(DOM.stopNavBtn){DOM.stopNavBtn.addEventListener("click",()=>stopNavigation())}
-if(DOM.incomeForm){DOM.incomeForm.addEventListener("submit",e=>{e.preventDefault();const salary=Number(DOM.salaryInput.value);if(!Number.isFinite(salary)||salary<0)return;state.salary=salary;localStorage.setItem(STORAGE_KEYS.salary,String(salary));renderWallet();setStatus("Sueldo guardado")})}
-if(DOM.expenseForm){DOM.expenseForm.addEventListener("submit",e=>{e.preventDefault();const title=DOM.expenseTitle.value.trim();const amount=Number(DOM.expenseAmount.value);const category=DOM.expenseCategory.value;if(!title||!Number.isFinite(amount)||amount<=0)return;state.expenses.unshift({id:cryptoRandomId(),title,amount,category,createdAt:new Date().toISOString()});persistExpenses();DOM.expenseTitle.value="";DOM.expenseAmount.value="";DOM.expenseCategory.value="Hogar";renderWallet();setStatus("Gasto agregado")})}
-if(DOM.clearExpensesBtn){DOM.clearExpensesBtn.addEventListener("click",()=>{state.expenses=[];persistExpenses();renderWallet();setStatus("Gastos eliminados")})}
-if(DOM.expensesList){DOM.expensesList.addEventListener("click",e=>{const button=e.target.closest("[data-expense-id]");if(!button)return;const id=button.getAttribute("data-expense-id");state.expenses=state.expenses.filter(expense=>expense.id!==id);persistExpenses();renderWallet();setStatus("Gasto eliminado")})}
-}
+const state={
+  coords:JSON.parse(localStorage.getItem("brinow_coords")||"null")||{lat:18.4861,lon:-69.9312},
+  locationName:localStorage.getItem("brinow_location_name")||"Santo Domingo, RD",
+  map:null,userMarker:null,routeLine:null,destinationMarker:null,currentRoute:null,watchId:null,navigationActive:false,
+  tasks:JSON.parse(localStorage.getItem(`brinow_tasks_${todayKey()}`)||"[]"),
+  salary:Number(localStorage.getItem("brinow_salary")||0),
+  expenses:JSON.parse(localStorage.getItem("brinow_expenses")||"[]")
+};
 
-function initClock(){const formatter=new Intl.DateTimeFormat("es-DO",{hour:"2-digit",minute:"2-digit"});const weekdayFormatter=new Intl.DateTimeFormat("es-DO",{weekday:"long"});function tick(){const now=new Date();if(DOM.currentTime)DOM.currentTime.textContent=formatter.format(now);if(DOM.heroDayLabel)DOM.heroDayLabel.textContent=capitalize(weekdayFormatter.format(now))}tick();setInterval(tick,1000)}
-
-async function refreshAll(){setStatus("Actualizando");if(DOM.originInput)DOM.originInput.value=state.locationName||"Mi ubicación actual";await Promise.allSettled([loadWeather(),loadExchangeRates(),loadNews("República Dominicana")]);updateMapPosition(state.coords.lat,state.coords.lon,state.locationName);stampUpdated();setStatus("Listo")}
-
-function loadCoords(){const raw=localStorage.getItem(STORAGE_KEYS.coords);if(!raw)return{lat:FALLBACK_LOCATION.lat,lon:FALLBACK_LOCATION.lon};try{const parsed=JSON.parse(raw);if(typeof parsed.lat==="number"&&typeof parsed.lon==="number")return parsed}catch{}return{lat:FALLBACK_LOCATION.lat,lon:FALLBACK_LOCATION.lon}}
-function saveCoords(lat,lon){state.coords={lat,lon};localStorage.setItem(STORAGE_KEYS.coords,JSON.stringify(state.coords))}
-function loadExpenses(){const raw=localStorage.getItem(STORAGE_KEYS.expenses);if(!raw)return[];try{const parsed=JSON.parse(raw);return Array.isArray(parsed)?parsed:[]}catch{return[]}}
-function persistExpenses(){localStorage.setItem(STORAGE_KEYS.expenses,JSON.stringify(state.expenses))}
-function updateLocationLabel(name){state.locationName=name;localStorage.setItem(STORAGE_KEYS.locationName,name);if(DOM.locationLabel)DOM.locationLabel.textContent=name;if(DOM.originInput)DOM.originInput.value=name}
-function stampUpdated(){if(DOM.lastUpdatedLabel)DOM.lastUpdatedLabel.textContent=new Intl.DateTimeFormat("es-DO",{hour:"2-digit",minute:"2-digit"}).format(new Date())}
 function setStatus(text){if(DOM.statusLabel)DOM.statusLabel.textContent=text}
+function saveCoords(lat,lon){state.coords={lat,lon};localStorage.setItem("brinow_coords",JSON.stringify(state.coords))}
+function saveTasks(){localStorage.setItem(`brinow_tasks_${todayKey()}`,JSON.stringify(state.tasks))}
+function saveWallet(){localStorage.setItem("brinow_salary",String(state.salary));localStorage.setItem("brinow_expenses",JSON.stringify(state.expenses))}
 
-async function detectUserLocation(){
-  if(!navigator.geolocation){setStatus("Ubicación no disponible");if(DOM.routeSummary)DOM.routeSummary.textContent="Tu navegador no permite obtener la ubicación.";return}
-  setStatus("Detectando ubicación");
-  if(DOM.routeSummary)DOM.routeSummary.textContent="Obteniendo ubicación actual...";
-  navigator.geolocation.getCurrentPosition(async position=>{
-    const {latitude,longitude}=position.coords;
-    saveCoords(latitude,longitude);
-    state.lastPosition={lat:latitude,lon:longitude};
-    await reverseGeocode(latitude,longitude);
-    updateMapPosition(latitude,longitude,state.locationName);
-    if(DOM.routeSummary)DOM.routeSummary.textContent="Ubicación actual detectada. Ahora escribe el destino.";
-    await refreshAll();
-  },()=>{
-    setStatus("Permiso denegado");
-    if(DOM.routeSummary)DOM.routeSummary.textContent="Debes permitir la ubicación para usar la ruta automática.";
-  },{enableHighAccuracy:true,timeout:15000,maximumAge:0})
-}
+function tickClock(){const now=new Date();if(DOM.currentTime)DOM.currentTime.textContent=timeFmt(now);if(DOM.heroDayLabel)DOM.heroDayLabel.textContent=dateFmt(now)}
 
-async function reverseGeocode(lat,lon){
-  try{
-    const response=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=es`);
-    const data=await response.json();
-    const a=data.address||{};
-    const city=a.city||a.town||a.village||a.municipality||"Ubicación actual";
-    const country=a.country||"República Dominicana";
-    updateLocationLabel(`${city}, ${country}`);
-  }catch{
-    updateLocationLabel("Mi ubicación actual");
-  }
-}
-
-function weatherLabelFromCode(code){const map={0:"Despejado",1:"Mayormente despejado",2:"Parcialmente nublado",3:"Nublado",45:"Niebla",48:"Niebla helada",51:"Llovizna ligera",53:"Llovizna",55:"Llovizna intensa",61:"Lluvia ligera",63:"Lluvia",65:"Lluvia fuerte",71:"Nieve ligera",73:"Nieve",75:"Nieve fuerte",80:"Chubascos ligeros",81:"Chubascos",82:"Chubascos fuertes",95:"Tormenta"};return map[code]||"Tiempo actual"}
-
-async function loadWeather(){try{const {lat,lon}=state.coords;const response=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,wind_speed_10m,weather_code&hourly=temperature_2m,weather_code&forecast_days=2&timezone=auto`);if(!response.ok)throw new Error("weather");const data=await response.json();const c=data.current;const weatherText=weatherLabelFromCode(c.weather_code);if(DOM.weatherTemp)DOM.weatherTemp.textContent=`${Math.round(c.temperature_2m)}°C`;if(DOM.weatherCondition)DOM.weatherCondition.textContent=weatherText;if(DOM.feelsLike)DOM.feelsLike.textContent=`${Math.round(c.apparent_temperature)}°C`;if(DOM.windSpeed)DOM.windSpeed.textContent=`${Math.round(c.wind_speed_10m)} km/h`;if(DOM.weatherCodeLabel)DOM.weatherCodeLabel.textContent=String(c.weather_code);if(DOM.heroTemp)DOM.heroTemp.textContent=`${Math.round(c.temperature_2m)}°`;if(DOM.heroWeatherText)DOM.heroWeatherText.textContent=weatherText;const hours=(data.hourly.time||[]).slice(0,6).map((time,index)=>({time,temperature:data.hourly.temperature_2m[index],weatherCode:data.hourly.weather_code[index]}));if(DOM.forecastStrip)DOM.forecastStrip.innerHTML=hours.map(item=>`<div class="forecast-item"><span class="hour">${new Date(item.time).toLocaleTimeString("es-DO",{hour:"2-digit",minute:"2-digit"})}</span><span class="temp">${Math.round(item.temperature)}°</span><span class="desc">${weatherLabelFromCode(item.weatherCode)}</span></div>`).join("")}catch{if(DOM.weatherTemp)DOM.weatherTemp.textContent="--°C";if(DOM.weatherCondition)DOM.weatherCondition.textContent="No se pudo cargar el clima";if(DOM.feelsLike)DOM.feelsLike.textContent="--°C";if(DOM.windSpeed)DOM.windSpeed.textContent="-- km/h";if(DOM.weatherCodeLabel)DOM.weatherCodeLabel.textContent="--";if(DOM.heroTemp)DOM.heroTemp.textContent="--°";if(DOM.heroWeatherText)DOM.heroWeatherText.textContent="Sin clima";if(DOM.forecastStrip)DOM.forecastStrip.innerHTML=`<div class="empty-state">No se pudo cargar el pronóstico.</div>`}}
-
-async function loadExchangeRates(){try{const [usdResponse,eurResponse]=await Promise.all([fetch("https://open.er-api.com/v6/latest/USD"),fetch("https://open.er-api.com/v6/latest/EUR")]);if(!usdResponse.ok||!eurResponse.ok)throw new Error("fx");const usdData=await usdResponse.json();const eurData=await eurResponse.json();const usdToDop=usdData?.rates?.DOP;const eurToDop=eurData?.rates?.DOP;if(DOM.usdToDop)DOM.usdToDop.textContent=usdToDop?formatMoney(usdToDop):"--";if(DOM.eurToDop)DOM.eurToDop.textContent=eurToDop?formatMoney(eurToDop):"--";if(DOM.exchangeUpdated)DOM.exchangeUpdated.textContent=new Intl.DateTimeFormat("es-DO",{hour:"2-digit",minute:"2-digit"}).format(new Date());if(DOM.heroRate)DOM.heroRate.textContent=usdToDop?formatMoney(usdToDop):"--"}catch{if(DOM.usdToDop)DOM.usdToDop.textContent="--";if(DOM.eurToDop)DOM.eurToDop.textContent="--";if(DOM.exchangeUpdated)DOM.exchangeUpdated.textContent="Sin conexión";if(DOM.heroRate)DOM.heroRate.textContent="--"}}
-
-async function loadNews(query){try{if(DOM.newsList)DOM.newsList.innerHTML=`<div class="empty-state">Cargando noticias...</div>`;const feedUrl=`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=es-419&gl=DO&ceid=DO:es-419`;const proxyUrl=`https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`;const response=await fetch(proxyUrl);if(!response.ok)throw new Error("news");const xmlText=await response.text();const parser=new DOMParser();const xml=parser.parseFromString(xmlText,"text/xml");const items=Array.from(xml.querySelectorAll("item")).slice(0,6);if(!items.length){if(DOM.newsList)DOM.newsList.innerHTML=`<div class="empty-state">No se encontraron noticias para esa búsqueda.</div>`;if(DOM.heroNewsCount)DOM.heroNewsCount.textContent="0";if(DOM.heroNewsText)DOM.heroNewsText.textContent="Sin resultados";return}const articles=items.map(item=>({title:item.querySelector("title")?.textContent||"Sin título",link:item.querySelector("link")?.textContent||"#",pubDate:item.querySelector("pubDate")?.textContent||"",source:item.querySelector("source")?.textContent||"Fuente",image:`https://picsum.photos/seed/${encodeURIComponent(item.querySelector("title")?.textContent||Math.random())}/400/300`}));if(DOM.newsList)DOM.newsList.innerHTML=articles.map(article=>`<article class="news-item"><img src="${article.image}" alt="Noticia"><div class="news-content"><h4>${escapeHtml(article.title)}</h4><p>${escapeHtml(article.source)} · ${escapeHtml(formatNewsDate(article.pubDate))}</p><a href="${article.link}" target="_blank" rel="noopener noreferrer">Ver noticia</a></div></article>`).join("");if(DOM.heroNewsCount)DOM.heroNewsCount.textContent=String(articles.length);if(DOM.heroNewsText)DOM.heroNewsText.textContent=query}catch{if(DOM.newsList)DOM.newsList.innerHTML=`<div class="empty-state">No se pudieron cargar las noticias ahora mismo.</div>`;if(DOM.heroNewsCount)DOM.heroNewsCount.textContent="0";if(DOM.heroNewsText)DOM.heroNewsText.textContent="Error"}}
-
-function initMap(){
-  if(typeof L==="undefined"||!document.getElementById("map")) return;
-  const {lat,lon}=state.coords;
-  state.map=L.map("map",{zoomControl:true}).setView([lat,lon],12);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{attribution:"&copy; OpenStreetMap &copy; CARTO"}).addTo(state.map);
-  state.userMarker=L.marker([lat,lon]).addTo(state.map);
-  state.userMarker.bindPopup(`<strong>${escapeHtml(state.locationName)}</strong>`);
-}
-
-function updateMapPosition(lat,lon,label){
-  if(!state.map)return;
-  state.map.setView([lat,lon],state.navigationActive?17:12);
-  if(state.userMarker){
-    state.userMarker.setLatLng([lat,lon]);
-    state.userMarker.bindPopup(`<strong>${escapeHtml(label)}</strong>`);
-  }
-  if(DOM.mapStatus)DOM.mapStatus.textContent=`Vista centrada en ${label}.`;
-}
-
-async function geocodeLocation(query){
-  if(!query||query.trim().length<3) throw new Error("Destino inválido");
-  const tries=[
-    `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&countrycodes=do&q=${encodeURIComponent(query)}`,
-    `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&q=${encodeURIComponent(query)}`
-  ];
-  for(const url of tries){
-    const response=await fetch(url);
-    if(!response.ok)continue;
-    const data=await response.json();
-    if(Array.isArray(data)&&data.length){
-      return{lat:Number(data[0].lat),lon:Number(data[0].lon),name:data[0].display_name};
-    }
-  }
-  throw new Error("Destino no encontrado");
-}
-
-async function snapToRoad(lat,lon){
-  const response=await fetch(`https://router.project-osrm.org/nearest/v1/driving/${lon},${lat}`);
-  if(!response.ok)throw new Error("No se pudo ajustar a la vía");
-  const data=await response.json();
-  const waypoint=data.waypoints?.[0];
-  if(!waypoint||!waypoint.location)throw new Error("Sin vía cercana");
-  return{lon:waypoint.location[0],lat:waypoint.location[1]};
-}
-
-async function calculateRoute(){
-  const destinationText=DOM.destinationInput?.value.trim()||"";
-  if(!destinationText){if(DOM.routeSummary)DOM.routeSummary.textContent="Escribe un destino";return}
-  if(!state.coords||typeof state.coords.lat!=="number"||typeof state.coords.lon!=="number"){if(DOM.routeSummary)DOM.routeSummary.textContent="Activa tu ubicación primero";return}
-  try{
-    if(DOM.routeSummary)DOM.routeSummary.textContent="Calculando ruta...";
-    if(DOM.navInstruction)DOM.navInstruction.textContent="Preparando navegación";
-    if(DOM.navRemaining)DOM.navRemaining.textContent="--";
-
-    const destination=await geocodeLocation(destinationText);
-    const originSnap=await snapToRoad(state.coords.lat,state.coords.lon);
-
-    let destSnap;
-    try{
-      destSnap=await snapToRoad(destination.lat,destination.lon);
-    }catch{
-      destSnap={lat:destination.lat,lon:destination.lon};
-    }
-
-    const url=`https://router.project-osrm.org/route/v1/driving/${originSnap.lon},${originSnap.lat};${destSnap.lon},${destSnap.lat}?overview=full&geometries=geojson&steps=true`;
-    const response=await fetch(url);
-    if(!response.ok)throw new Error("Error en servidor de rutas");
-
-    const data=await response.json();
-    if(!data.routes||data.routes.length===0)throw new Error("No hay ruta disponible");
-
-    const route=data.routes[0];
-    state.currentRoute={
-      distance:route.distance,
-      duration:route.duration,
-      geometry:route.geometry.coordinates,
-      steps:(route.legs?.[0]?.steps||[]).map(step=>({
-        instruction:buildInstruction(step),
-        distance:step.distance,
-        duration:step.duration,
-        maneuverLocation:step.maneuver?.location||null
-      })),
-      destination,
-      snappedDestination:destSnap
-    };
-
-    drawRoute(route.geometry.coordinates,destination);
-    if(DOM.routeSummary)DOM.routeSummary.textContent=`${(route.distance/1000).toFixed(1)} km · ${Math.round(route.duration/60)} min`;
-    if(DOM.mapStatus)DOM.mapStatus.textContent="Ruta calculada correctamente";
-    if(DOM.navInstruction)DOM.navInstruction.textContent=state.currentRoute.steps[0]?.instruction||"Ruta lista";
-    if(DOM.navRemaining)DOM.navRemaining.textContent=`${(route.distance/1000).toFixed(1)} km`;
-    if(DOM.navMode)DOM.navMode.textContent="Ruta lista";
-  }catch(error){
-    console.error(error);
-    if(DOM.routeSummary)DOM.routeSummary.textContent=error.message||"No se pudo calcular la ruta";
-    if(DOM.mapStatus)DOM.mapStatus.textContent="Error de ruta";
-    if(DOM.navInstruction)DOM.navInstruction.textContent="Error de ruta";
-    if(DOM.navMode)DOM.navMode.textContent="Error";
-  }
-}
-
-function drawRoute(coordinates,destination){
-  if(!state.map)return;
-  const latLngs=coordinates.map(([lon,lat])=>[lat,lon]);
-  if(state.routeLine)state.map.removeLayer(state.routeLine);
-  if(state.destinationMarker)state.map.removeLayer(state.destinationMarker);
-  state.routeLine=L.polyline(latLngs,{weight:6,opacity:.95,color:"#6ea8ff"}).addTo(state.map);
-  state.destinationMarker=L.marker([destination.lat,destination.lon]).addTo(state.map);
-  state.destinationMarker.bindPopup(`<strong>${escapeHtml(destination.name)}</strong>`);
-  state.map.fitBounds(state.routeLine.getBounds(),{padding:[35,35]});
-}
-
-function startNavigation(){
-  if(!state.currentRoute){if(DOM.navMode)DOM.navMode.textContent="Sin ruta";if(DOM.navInstruction)DOM.navInstruction.textContent="Calcula una ruta primero";return}
-  if(!navigator.geolocation){if(DOM.navMode)DOM.navMode.textContent="No disponible";return}
-  stopNavigation(false);
-  state.navigationActive=true;
-  if(DOM.navMode)DOM.navMode.textContent="Navegando";
-  if(DOM.routeSummary)DOM.routeSummary.textContent="Navegación activa. Puedes seguir la ruta en el mapa.";
-  state.watchId=navigator.geolocation.watchPosition(async position=>{
-    const lat=position.coords.latitude;
-    const lon=position.coords.longitude;
-    state.lastPosition={lat,lon};
-    saveCoords(lat,lon);
-    updateMapPosition(lat,lon,"Mi ubicación actual");
-    await updateNavigationProgress(lat,lon);
-  },()=>{
-    if(DOM.navMode)DOM.navMode.textContent="Error GPS";
-    if(DOM.navInstruction)DOM.navInstruction.textContent="No se pudo seguir tu ubicación";
-  },{enableHighAccuracy:true,maximumAge:1000,timeout:10000});
-}
-
-function stopNavigation(updateUi=true){
-  if(state.watchId!==null){
-    navigator.geolocation.clearWatch(state.watchId);
-    state.watchId=null;
-  }
-  state.navigationActive=false;
-  if(updateUi){
-    if(DOM.navMode)DOM.navMode.textContent="Inactivo";
-    if(DOM.navInstruction)DOM.navInstruction.textContent="Navegación detenida";
-  }
-}
-
-async function updateNavigationProgress(lat,lon){
-  if(!state.currentRoute)return;
-  try{
-    const snapped=await snapToRoad(lat,lon);
-    const remainingDistance=distanceBetween(snapped.lat,snapped.lon,state.currentRoute.snappedDestination.lat,state.currentRoute.snappedDestination.lon);
-    if(DOM.navRemaining)DOM.navRemaining.textContent=remainingDistance>=1000?`${(remainingDistance/1000).toFixed(1)} km`:`${Math.round(remainingDistance)} m`;
-    const nextStep=findNextStep(snapped.lat,snapped.lon,state.currentRoute.steps);
-    if(DOM.navInstruction)DOM.navInstruction.textContent=nextStep?.instruction||"Sigue la ruta marcada";
-    if(remainingDistance<35){
-      if(DOM.navInstruction)DOM.navInstruction.textContent="Has llegado al destino";
-      if(DOM.navMode)DOM.navMode.textContent="Llegaste";
-      if(DOM.routeSummary)DOM.routeSummary.textContent="Ruta completada.";
-      stopNavigation(false);
-    }
-  }catch{
-    if(DOM.navInstruction)DOM.navInstruction.textContent="Sigue la ruta marcada";
-  }
-}
-
-function findNextStep(lat,lon,steps){
-  let best=null;
-  let bestDistance=Infinity;
-  for(const step of steps){
-    if(!step.maneuverLocation)continue;
-    const [slon,slat]=step.maneuverLocation;
-    const d=distanceBetween(lat,lon,slat,slon);
-    if(d<bestDistance){
-      bestDistance=d;
-      best=step;
-    }
-  }
-  return best;
-}
-
-function buildInstruction(step){
-  const maneuver=step.maneuver||{};
-  const type=maneuver.type||"continue";
-  const modifier=maneuver.modifier||"";
-  const road=step.name?` por ${step.name}`:"";
-  const map={
-    continue:"Sigue recto",
-    depart:"Sal",
-    turn:"Gira",
-    merge:"Incorpórate",
-    on_ramp:"Toma la entrada",
-    off_ramp:"Toma la salida",
-    fork:"Mantente",
-    roundabout:"Entra en la rotonda",
-    arrive:"Llegaste al destino"
+function initMenu(){
+  const closeMenu=()=>{
+    DOM.mobileDrawer?.classList.remove("open");
+    DOM.menuBtn?.classList.remove("active");
+    DOM.menuBtn?.setAttribute("aria-expanded","false");
   };
-  let text=map[type]||"Continúa";
-  if(modifier){
-    const modMap={left:"a la izquierda",right:"a la derecha",straight:"recto","slight left":"ligeramente a la izquierda","slight right":"ligeramente a la derecha","sharp left":"fuerte a la izquierda","sharp right":"fuerte a la derecha",uturn:"en U"};
-    text+=` ${modMap[modifier]||modifier}`;
-  }
-  return `${text}${road}`.trim();
+  const toggleMenu=()=>{
+    const isOpen=DOM.mobileDrawer?.classList.toggle("open");
+    DOM.menuBtn?.classList.toggle("active",!!isOpen);
+    DOM.menuBtn?.setAttribute("aria-expanded",isOpen?"true":"false");
+  };
+  DOM.menuBtn?.addEventListener("click",toggleMenu);
+  DOM.mobileDrawer?.querySelectorAll("a,button").forEach(el=>el.addEventListener("click",closeMenu));
+  document.addEventListener("click",e=>{
+    if(!DOM.mobileDrawer?.classList.contains("open"))return;
+    if(DOM.mobileDrawer.contains(e.target)||DOM.menuBtn?.contains(e.target))return;
+    closeMenu();
+  });
+  window.addEventListener("resize",()=>{if(window.innerWidth>1180)closeMenu()});
 }
 
-function distanceBetween(lat1,lon1,lat2,lon2){
-  const R=6371000;
-  const toRad=v=>v*Math.PI/180;
-  const dLat=toRad(lat2-lat1);
-  const dLon=toRad(lon2-lon1);
-  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(a));
-}
+async function reverseGeocode(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&accept-language=es&lat=${lat}&lon=${lon}`);if(!r.ok)throw new Error();const d=await r.json();const a=d.address||{};return [a.suburb||a.city||a.town||a.municipality,a.country_code?"RD":""].filter(Boolean).join(", ")||d.display_name||"Mi ubicación"}catch{return "Mi ubicación actual"}}
 
-function renderWallet(){const totalExpenses=state.expenses.reduce((sum,expense)=>sum+Number(expense.amount),0);const balance=state.salary-totalExpenses;const percent=state.salary>0?Math.min(totalExpenses/state.salary*100,100):0;if(DOM.salaryInput)DOM.salaryInput.value=state.salary?state.salary:"";if(DOM.incomeValue)DOM.incomeValue.textContent=formatCurrencyDOP(state.salary);if(DOM.expenseValue)DOM.expenseValue.textContent=formatCurrencyDOP(totalExpenses);if(DOM.balanceValue)DOM.balanceValue.textContent=formatCurrencyDOP(balance);if(DOM.budgetPercentLabel)DOM.budgetPercentLabel.textContent=`${Math.round(percent)}%`;if(DOM.budgetProgress)DOM.budgetProgress.style.width=`${Math.max(0,Math.min(percent,100))}%`;if(DOM.heroWalletBalance)DOM.heroWalletBalance.textContent=formatCurrencyDOP(balance);if(DOM.heroWalletText)DOM.heroWalletText.textContent=balance<0?"Sobregirado":"Saldo disponible";if(DOM.walletStatusValue){if(state.salary<=0){DOM.walletStatusValue.textContent="Agrega tu sueldo"}else if(balance<0){DOM.walletStatusValue.textContent="Sobregirado"}else if(percent>=90){DOM.walletStatusValue.textContent="Muy ajustado"}else if(percent>=70){DOM.walletStatusValue.textContent="Cuidado"}else{DOM.walletStatusValue.textContent="Saludable"}}if(!DOM.expensesList)return;if(!state.expenses.length){DOM.expensesList.innerHTML=`<div class="empty-state">Aún no has agregado gastos.</div>`;return}DOM.expensesList.innerHTML=state.expenses.map(expense=>`<article class="expense-item"><div class="expense-main"><strong>${escapeHtml(expense.title)}</strong><p>${escapeHtml(expense.category)} · ${formatNewsDate(expense.createdAt)}</p></div><div class="expense-right"><strong>${formatCurrencyDOP(expense.amount)}</strong><button class="delete-expense-btn" data-expense-id="${expense.id}">Eliminar</button></div></article>`).join("")}
-function formatMoney(value){return new Intl.NumberFormat("es-DO",{minimumFractionDigits:2,maximumFractionDigits:2}).format(value)}
-function formatCurrencyDOP(value){return new Intl.NumberFormat("es-DO",{style:"currency",currency:"DOP"}).format(Number(value||0))}
-function formatNewsDate(value){if(!value)return"Fecha no disponible";const date=new Date(value);if(Number.isNaN(date.getTime()))return value;return new Intl.DateTimeFormat("es-DO",{day:"2-digit",month:"short",year:"numeric"}).format(date)}
-function capitalize(text){return text?text.charAt(0).toUpperCase()+text.slice(1):""}
-function escapeHtml(value){return String(value).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;")}
-function cryptoRandomId(){return window.crypto&&crypto.randomUUID?crypto.randomUUID():`id-${Date.now()}-${Math.random().toString(16).slice(2)}`}
+async function useMyLocation(){if(!navigator.geolocation){setStatus("GPS no disponible");return}setStatus("Buscando GPS");navigator.geolocation.getCurrentPosition(async p=>{const lat=p.coords.latitude,lon=p.coords.longitude;saveCoords(lat,lon);state.locationName=await reverseGeocode(lat,lon);localStorage.setItem("brinow_location_name",state.locationName);if(DOM.locationLabel)DOM.locationLabel.textContent=state.locationName;updateMapPosition(lat,lon,state.locationName);await loadWeather();setStatus("Ubicación lista")},()=>setStatus("GPS denegado"),{enableHighAccuracy:true,timeout:12000,maximumAge:60000})}
+
+async function loadWeather(){try{setStatus("Clima");const {lat,lon}=state.coords;const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code&forecast_days=1&timezone=auto`;const r=await fetch(url);if(!r.ok)throw new Error();const d=await r.json();const c=d.current||{};const temp=Math.round(c.temperature_2m);const cond=weatherText(c.weather_code);DOM.heroTemp.textContent=`${temp}°`;DOM.heroWeatherText.textContent=cond;DOM.weatherTemp.textContent=`${temp}°C`;DOM.weatherCondition.textContent=cond;DOM.feelsLike.textContent=`${Math.round(c.apparent_temperature)}°C`;DOM.windSpeed.textContent=`${Math.round(c.wind_speed_10m)} km/h`;renderForecast(d.hourly);markUpdated();setStatus("Listo")}catch{DOM.weatherCondition.textContent="No se pudo cargar el clima";setStatus("Clima falló")}}
+
+function weatherText(code){const map={0:"Cielo despejado",1:"Principalmente despejado",2:"Parcialmente nublado",3:"Nublado",45:"Neblina",48:"Neblina con escarcha",51:"Llovizna ligera",53:"Llovizna",55:"Llovizna intensa",61:"Lluvia ligera",63:"Lluvia",65:"Lluvia fuerte",80:"Chubascos",81:"Chubascos moderados",82:"Chubascos fuertes",95:"Tormenta"};return map[code]||"Condición variable"}
+function renderForecast(hourly){if(!DOM.forecastStrip||!hourly?.time)return;const now=new Date();const items=hourly.time.map((t,i)=>({t:new Date(t),temp:hourly.temperature_2m[i],code:hourly.weather_code[i]})).filter(x=>x.t>=now).slice(0,4);DOM.forecastStrip.innerHTML=items.map(x=>`<div class="forecast-item"><span>${timeFmt(x.t)}</span><strong>${Math.round(x.temp)}°</strong><small>${safe(weatherText(x.code))}</small></div>`).join("")||`<p class="empty">Sin pronóstico disponible.</p>`}
+
+async function loadExchange(){try{const r=await fetch("https://open.er-api.com/v6/latest/USD");if(!r.ok)throw new Error();const d=await r.json();const usd=d.rates?.DOP;const eur=usd/(d.rates?.EUR||1);DOM.usdToDop.textContent=usd?`RD$ ${usd.toFixed(2)}`:"--";DOM.eurToDop.textContent=eur?`RD$ ${eur.toFixed(2)}`:"--";DOM.heroRate.textContent=usd?usd.toFixed(2):"--";DOM.exchangeUpdated.textContent=timeFmt(new Date());markUpdated()}catch{DOM.exchangeUpdated.textContent="No disponible"}}
+
+async function loadDailyNews(force=false){const query=(DOM.newsQuery?.value.trim()||"República Dominicana");const cacheKey=`brinow_daily_news_${todayKey()}_${query.toLowerCase()}`;const cached=JSON.parse(localStorage.getItem(cacheKey)||"null");if(cached&&!force){renderNews(cached);return}try{setStatus("Noticias");const rss=`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=es-419&gl=DO&ceid=DO:es-419`;let article=null;try{const r=await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rss)}`);if(r.ok){const d=await r.json();const item=d.items?.[0];if(item)article={title:item.title,link:item.link,source:item.author||"Google News",date:item.pubDate,description:item.description?.replace(/<[^>]+>/g,"").slice(0,180)||"Noticia destacada del día."}}}catch{}if(!article){const r=await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(rss)}`);if(!r.ok)throw new Error();const xml=await r.text();const doc=new DOMParser().parseFromString(xml,"text/xml");const item=doc.querySelector("item");if(item)article={title:item.querySelector("title")?.textContent||"Noticia del día",link:item.querySelector("link")?.textContent||"#",source:item.querySelector("source")?.textContent||"Google News",date:item.querySelector("pubDate")?.textContent||new Date().toISOString(),description:"Resumen disponible desde Google News RSS."}}
+    if(!article)throw new Error();localStorage.setItem(cacheKey,JSON.stringify(article));renderNews(article);setStatus("Listo")}catch{renderNews({title:"No se pudo cargar la noticia automática",link:"https://news.google.com/",source:"Google News",date:new Date().toISOString(),description:"La app queda preparada con RSS gratuito y caché diaria. Intenta actualizar más tarde."});setStatus("Noticias falló")}}
+function renderNews(a){DOM.newsList.innerHTML=`<article class="news-item"><h3>${safe(a.title)}</h3><p>${safe(a.description||"Noticia destacada del día.")}</p><p>${safe(a.source||"Fuente")} · ${safe(timeFmt(a.date||new Date()))}</p><a href="${safe(a.link||"#")}" target="_blank" rel="noopener noreferrer">Ver noticia</a></article>`}
+
+function renderTasks(){const total=state.tasks.length,done=state.tasks.filter(t=>t.done).length,pending=total-done,percent=total?Math.round(done/total*100):0;DOM.pendingTasks.textContent=pending;DOM.doneTasks.textContent=done;DOM.taskProgressText.textContent=`${percent}%`;DOM.taskProgressBar.style.width=`${percent}%`;DOM.heroTasksCount.textContent=`${done}/${total}`;DOM.heroTasksText.textContent=total?`${pending} pendientes`:"Sin tareas";if(!total){DOM.taskList.innerHTML=`<p class="empty">Aún no tienes tareas para hoy.</p>`;return}DOM.taskList.innerHTML=state.tasks.sort((a,b)=>(a.done-b.done)||String(a.time||"99:99").localeCompare(String(b.time||"99:99"))).map(t=>`<article class="task-item ${t.done?"done":""}"><input class="task-check" type="checkbox" data-id="${t.id}" ${t.done?"checked":""}><div><div class="task-title">${safe(t.title)}</div><div class="task-meta"><span>${safe(t.time||"Sin hora")}</span> · <span class="priority-${safe(t.priority)}">${safe(t.priority)}</span></div></div><button class="task-delete" data-delete="${t.id}">Eliminar</button></article>`).join("")}
+function addTask(e){e.preventDefault();const title=DOM.taskInput.value.trim();if(!title)return;state.tasks.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),title,time:DOM.taskTime.value,priority:DOM.taskPriority.value,done:false,createdAt:new Date().toISOString()});DOM.taskForm.reset();saveTasks();renderTasks()}
+function handleTaskClick(e){const id=e.target.dataset.id||e.target.dataset.delete;if(!id)return;if(e.target.dataset.delete){state.tasks=state.tasks.filter(t=>t.id!==id)}else{state.tasks=state.tasks.map(t=>t.id===id?{...t,done:e.target.checked}:t)}saveTasks();renderTasks()}
+
+function renderWallet(){const expenses=state.expenses.reduce((s,x)=>s+Number(x.amount||0),0);const balance=state.salary-expenses;const percent=state.salary?Math.min(100,Math.round(expenses/state.salary*100)):0;DOM.incomeValue.textContent=money(state.salary);DOM.expenseValue.textContent=money(expenses);DOM.balanceValue.textContent=money(balance);DOM.heroWalletBalance.textContent=money(balance);DOM.heroWalletText.textContent=balance>=0?"Disponible":"Sobrepasado";DOM.walletStatusValue.textContent=!state.salary?"Sin datos":balance>=0?"Estable":"Excedido";DOM.budgetPercentLabel.textContent=`${percent}%`;DOM.budgetProgress.style.width=`${percent}%`;DOM.salaryInput.value=state.salary||"";DOM.expenseList.innerHTML=state.expenses.length?state.expenses.map(x=>`<article class="expense-item"><div><strong>${safe(x.name)}</strong><span>${safe(new Date(x.date).toLocaleDateString("es-DO"))}</span></div><strong>${money(x.amount)}</strong><button class="expense-delete" data-expense="${x.id}">Eliminar</button></article>`).join(""):`<p class="empty">No hay gastos registrados.</p>`}
+function saveIncome(e){e.preventDefault();state.salary=Number(DOM.salaryInput.value||0);saveWallet();renderWallet()}
+function addExpense(e){e.preventDefault();const name=DOM.expenseName.value.trim();const amount=Number(DOM.expenseAmount.value||0);if(!name||amount<=0)return;state.expenses.unshift({id:String(Date.now()),name,amount,date:new Date().toISOString()});DOM.expenseForm.reset();saveWallet();renderWallet()}
+function deleteExpense(e){const id=e.target.dataset.expense;if(!id)return;state.expenses=state.expenses.filter(x=>x.id!==id);saveWallet();renderWallet()}
+
+function initMap(){if(typeof L==="undefined"||!$("map"))return;const {lat,lon}=state.coords;state.map=L.map("map",{zoomControl:true}).setView([lat,lon],12);L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{attribution:"&copy; OpenStreetMap &copy; CARTO"}).addTo(state.map);state.userMarker=L.marker([lat,lon]).addTo(state.map).bindPopup(`<strong>${safe(state.locationName)}</strong>`)}
+function updateMapPosition(lat,lon,label){if(!state.map)return;state.map.setView([lat,lon],state.navigationActive?17:12);state.userMarker?.setLatLng([lat,lon]).bindPopup(`<strong>${safe(label)}</strong>`);DOM.mapStatus.textContent=`Vista centrada en ${label}.`}
+async function geocodeLocation(query){const urls=[`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&countrycodes=do&q=${encodeURIComponent(query)}`,`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&q=${encodeURIComponent(query)}`];for(const url of urls){const r=await fetch(url);if(!r.ok)continue;const d=await r.json();if(d?.length)return{lat:Number(d[0].lat),lon:Number(d[0].lon),name:d[0].display_name}}throw new Error("Destino no encontrado")}
+async function calculateRoute(e){e?.preventDefault();const q=DOM.destinationInput.value.trim();if(!q){DOM.routeSummary.textContent="Escribe un destino";return}try{DOM.routeSummary.textContent="Calculando ruta...";const dest=await geocodeLocation(q);const {lat,lon}=state.coords;const url=`https://router.project-osrm.org/route/v1/driving/${lon},${lat};${dest.lon},${dest.lat}?overview=full&geometries=geojson&steps=true`;const r=await fetch(url);if(!r.ok)throw new Error("Servidor de rutas no disponible");const d=await r.json();const route=d.routes?.[0];if(!route)throw new Error("No hay ruta disponible");state.currentRoute={distance:route.distance,duration:route.duration,geometry:route.geometry.coordinates,steps:route.legs?.[0]?.steps||[],destination:dest};drawRoute(route.geometry.coordinates,dest);DOM.routeSummary.textContent=`${(route.distance/1000).toFixed(1)} km · ${Math.round(route.duration/60)} min`;DOM.navInstruction.textContent=buildInstruction(state.currentRoute.steps[0]);DOM.navRemaining.textContent=`${(route.distance/1000).toFixed(1)} km`;DOM.navMode.textContent="Ruta lista"}catch(err){DOM.routeSummary.textContent=err.message||"No se pudo calcular la ruta";DOM.navMode.textContent="Error"}}
+function drawRoute(coords,dest){if(!state.map)return;const latLngs=coords.map(([lon,lat])=>[lat,lon]);if(state.routeLine)state.map.removeLayer(state.routeLine);if(state.destinationMarker)state.map.removeLayer(state.destinationMarker);state.routeLine=L.polyline(latLngs,{weight:6,opacity:.95,color:"#d4af37"}).addTo(state.map);state.destinationMarker=L.marker([dest.lat,dest.lon]).addTo(state.map).bindPopup(`<strong>${safe(dest.name)}</strong>`);state.map.fitBounds(state.routeLine.getBounds(),{padding:[38,38]});DOM.mapStatus.textContent="Ruta calculada correctamente"}
+function buildInstruction(step){if(!step)return"Sigue la ruta marcada";const type=step.maneuver?.type||"continue",mod=step.maneuver?.modifier||"",road=step.name?` por ${step.name}`:"";const base={depart:"Sal",turn:"Gira",continue:"Sigue recto",arrive:"Llegaste",merge:"Incorpórate",roundabout:"Entra a la rotonda"}[type]||"Continúa";const side={left:" a la izquierda",right:" a la derecha",straight:" recto",slight_left:" levemente a la izquierda",slight_right:" levemente a la derecha"}[mod]||"";return `${base}${side}${road}`}
+function startNavigation(){if(!state.currentRoute){DOM.navInstruction.textContent="Calcula una ruta primero";DOM.navMode.textContent="Sin ruta";return}if(!navigator.geolocation){DOM.navMode.textContent="GPS no disponible";return}stopNavigation(false);state.navigationActive=true;DOM.navMode.textContent="Navegando";state.watchId=navigator.geolocation.watchPosition(p=>{const lat=p.coords.latitude,lon=p.coords.longitude;saveCoords(lat,lon);updateMapPosition(lat,lon,"Mi ubicación actual");updateNavigationProgress(lat,lon)},()=>{DOM.navMode.textContent="Error GPS"},{enableHighAccuracy:true,maximumAge:1000,timeout:10000})}
+function stopNavigation(update=true){if(state.watchId!==null){navigator.geolocation.clearWatch(state.watchId);state.watchId=null}state.navigationActive=false;if(update){DOM.navMode.textContent="Inactivo";DOM.navInstruction.textContent="Navegación detenida"}}
+function updateNavigationProgress(lat,lon){if(!state.currentRoute)return;const dest=state.currentRoute.destination;const remaining=distanceBetween(lat,lon,dest.lat,dest.lon);DOM.navRemaining.textContent=remaining>=1000?`${(remaining/1000).toFixed(1)} km`:`${Math.round(remaining)} m`;if(remaining<45){DOM.navInstruction.textContent="Has llegado al destino";DOM.navMode.textContent="Llegaste";stopNavigation(false)}else{DOM.navInstruction.textContent=buildInstruction(state.currentRoute.steps[0])}}
+function distanceBetween(lat1,lon1,lat2,lon2){const R=6371000,toRad=x=>x*Math.PI/180;const dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1);const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))}
+function markUpdated(){const now=new Date();DOM.lastUpdatedLabel.textContent=timeFmt(now)}
+
+function bindEvents(){DOM.locateBtn?.addEventListener("click",useMyLocation);DOM.drawerLocateBtn?.addEventListener("click",useMyLocation);DOM.taskForm?.addEventListener("submit",addTask);DOM.taskList?.addEventListener("click",handleTaskClick);DOM.clearDoneTasks?.addEventListener("click",()=>{state.tasks=state.tasks.filter(t=>!t.done);saveTasks();renderTasks()});DOM.clearAllTasks?.addEventListener("click",()=>{state.tasks=[];saveTasks();renderTasks()});DOM.searchNewsBtn?.addEventListener("click",()=>loadDailyNews(true));DOM.routeForm?.addEventListener("submit",calculateRoute);DOM.startNavBtn?.addEventListener("click",startNavigation);DOM.stopNavBtn?.addEventListener("click",()=>stopNavigation(true));DOM.incomeForm?.addEventListener("submit",saveIncome);DOM.expenseForm?.addEventListener("submit",addExpense);DOM.expenseList?.addEventListener("click",deleteExpense)}
+
+async function init(){initMenu();bindEvents();tickClock();setInterval(tickClock,1000);if(DOM.locationLabel)DOM.locationLabel.textContent=state.locationName;initMap();renderTasks();renderWallet();await Promise.allSettled([loadWeather(),loadExchange(),loadDailyNews(false)]);setStatus("Listo")}
+
+document.addEventListener("DOMContentLoaded",init);

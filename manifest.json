@@ -1,0 +1,22 @@
+{
+  "name": "BriNow",
+  "short_name": "BriNow",
+  "description": "Centro personal diario para clima, tareas, rutas, noticias y cartera.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#030812",
+  "theme_color": "#030812",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "Img/joseph.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "Img/joseph.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
